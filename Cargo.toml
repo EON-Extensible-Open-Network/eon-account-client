@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 EON contributors
+
+[package]
+name = "eon-account-client"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.98"
+license = "MIT"
+description = "The EON Account client: OPAQUE sign-in, the encrypted vault and assertions, against eon-account-spec v0."
+repository = "https://github.com/EON-Extensible-Open-Network/eon-account-client"
+publish = false
+
+# Every dependency is a supply-chain commitment (madde 37); each says why it is here.
+[dependencies]
+# OPAQUE (RFC 9807): the password never leaves the device. The suite is fixed in
+# eon-account-spec/docs/cryptography.md; `argon2` is its key-stretching function.
+opaque-ke = { version = "4", features = ["argon2"] }
+# Argon2id with the spec's parameters, handed to opaque-ke (the same major it uses).
+argon2 = { version = "0.5", default-features = false, features = ["alloc"] }
+# The OPRF and key-exchange hash of the suite, and SHA-256 for HKDF.
+sha2 = "0.10"
+# Key derivation from OPAQUE's export key and from the recovery key.
+hkdf = "0.12"
+# The sealed box: XChaCha20-Poly1305 with a random 24-byte nonce.
+chacha20poly1305 = "0.10"
+# Checking assertions for services that trust an account server.
+ed25519-dalek = "2"
+# Randomness from the operating system, in the rand_core version opaque-ke takes.
+rand_core = { version = "0.6", features = ["getrandom"] }
+# Secrets are wiped from memory when dropped.
+zeroize = "1"
+# Binary values on the wire are base64url without padding.
+base64 = "0.22"
+# HTTPS to the account server: synchronous, rustls, the same major as EON Stream.
+ureq = { version = "2", features = ["json"], optional = true }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[features]
+# The account itself, over HTTPS. A server that only needs the suite, the
+# sealed box and assertion checking turns this off and has no HTTP client.
+default = ["http"]
+http = ["dep:ureq"]
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+# A panic in a library takes its application down.
+unwrap_used = "deny"
+panic = "deny"
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+
+# Argon2id at 64 MiB is several seconds unoptimised; tests would crawl.
+[profile.dev.package.argon2]
+opt-level = 3
+[profile.dev.package.blake2]
+opt-level = 3
